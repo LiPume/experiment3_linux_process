@@ -1,0 +1,12 @@
+*.o
+*.out
+*.exe
+
+shell/shell_main
+shell/cmd1
+shell/cmd2
+shell/cmd3
+pipe_comm/pipe_main
+msg_queue/msg_queue_main
+shared_memory/shm_sender
+shared_memory/shm_receiver
