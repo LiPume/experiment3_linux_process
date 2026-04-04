@@ -1,13 +1,14 @@
-/*
- * 文件名：cmd3.c
- * 模块：模拟Shell子命令
- * 负责人：
- * 功能：作为shell调用的测试命令3
- */
-
 #include <stdio.h>
 
 int main() {
-    printf("This is cmd3.\n");
+    int i, sum = 0;
+
+    printf("===== cmd3: Sum Calculation =====\n");
+    for (i = 1; i <= 10; i++) {
+        sum += i;
+        printf("i = %d, current sum = %d\n", i, sum);
+    }
+
+    printf("Final result: sum(1~10) = %d\n", sum);
     return 0;
 }

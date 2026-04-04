@@ -1,13 +1,10 @@
-/*
- * 文件名：cmd1.c
- * 模块：模拟Shell子命令
- * 负责人：
- * 功能：作为shell调用的测试命令1
- */
-
 #include <stdio.h>
+#include <unistd.h>
 
 int main() {
-    printf("This is cmd1.\n");
+    printf("===== cmd1: Process Information =====\n");
+    printf("Current PID  : %d\n", getpid());
+    printf("Parent PID   : %d\n", getppid());
+    printf("This program is executed by myshell's child process.\n");
     return 0;
 }
