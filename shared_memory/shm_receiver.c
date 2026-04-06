@@ -1,20 +1,48 @@
-/*
- * æ–‡ä»¶åï¼šshm_receiver.c
- * æ¨¡å—ï¼šå…±äº«å†…å­˜é€šä¿¡
- * è´Ÿè´£äººï¼š
- * åŠŸèƒ½ï¼šæ¥æ”¶è¿›ç¨‹ï¼Œä»å…±äº«å†…å­˜ä¸­è¯»å–æ•°æ®å¹¶è¿”å›åº”ç­”
- * å…³é”®ç³»ç»Ÿè°ƒç”¨ï¼šshmget(), shmat(), shmdt(), shmctl()
- */
-
 #include <stdio.h>
+#include <sys/shm.h>
+#include <string.h>
 #include <stdlib.h>
 
+#define SHM_KEY 1234
+
+struct shm_data {
+    int flag;        // 0: ¿ÉĞ´, 1: ¿É¶Á
+    char text[1024];
+};
+
 int main() {
-    // TODO: è·å–å…±äº«å†…å­˜
-    // TODO: æ˜ å°„å…±äº«å†…å­˜
-    // TODO: è¯»å–å…±äº«å†…å­˜å†…å®¹
-    // TODO: è¿”å›åº”ç­”ä¿¡æ¯
-    // TODO: è§£é™¤æ˜ å°„å¹¶åˆ é™¤å…±äº«å†…å­˜
+    int shmid = shmget(SHM_KEY, sizeof(struct shm_data), 0666);
+    if (shmid < 0) {
+        perror("shmget failed");
+        exit(1);
+    }
+
+    struct shm_data *shm = (struct shm_data *)shmat(shmid, NULL, 0);
+    if (shm == (void *)-1) {
+        perror("shmat failed");
+        exit(1);
+    }
+
+    while (1) {
+        // µÈ´ı sender Ğ´Èë
+        while (shm->flag == 0);
+
+        // Êä³ö½ÓÊÕµ½µÄÊı¾İ
+        printf("Received: %s", shm->text);
+
+        // ±ê¼ÇÎªÒÑ¶Á
+        shm->flag = 0;
+
+        // Èç¹ûÊÇ exit£¬ÔòÍË³ö
+        if (strncmp(shm->text, "exit", 4) == 0)
+            break;
+    }
+
+    // ½â³ıÓ³Éä
+    shmdt(shm);
+
+    // É¾³ı¹²ÏíÄÚ´æ£¨Ö»ĞèÒª receiver ×ö£©
+    shmctl(shmid, IPC_RMID, NULL);
 
     return 0;
 }
