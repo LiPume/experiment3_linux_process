@@ -1,11 +1,3 @@
-/*
- * 文件名：msg_queue_main.c
- * 模块：消息队列通信
- * 负责人：
- * 功能：创建 sender1、sender2、receiver 三个线程进行通信
- * 关键函数/系统调用：pthread_create(), msgget(), msgsnd(), msgrcv(), msgctl()
- */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -22,7 +14,6 @@ pthread_t s1, s2, r;
 // ---------- 信号量 ----------
 sem_t mutex;
 sem_t full, empty;
-sem_t over;
 sem_t s_display, r_display;
 
 // ---------- 消息结构 ----------
@@ -46,28 +37,26 @@ void *receive(void *arg)
         sem_wait(&full);
         sem_wait(&mutex);
 
-        // 阻塞式接收 msg_type=1 的消息
+        // 接收 sender 发来的消息（类型1）
         msgrcv(msgid, &buf, sizeof(buf.msg), 1, 0);
 
         printf("receive: %s\n", buf.msg);
         printf("-----------------------------\n");
 
-        // sender1 结束
+        // sender1结束
         if (flag1 && strcmp(buf.msg, "end1") == 0)
         {
             strcpy(buf.msg, "over1");
             buf.msg_type = 2;
             msgsnd(msgid, &buf, sizeof(buf.msg), 0);
-            sem_post(&over);
             flag1 = 0;
         }
-        // sender2 结束
+        // sender2结束
         else if (flag2 && strcmp(buf.msg, "end2") == 0)
         {
             strcpy(buf.msg, "over2");
             buf.msg_type = 2;
             msgsnd(msgid, &buf, sizeof(buf.msg), 0);
-            sem_post(&over);
             flag2 = 0;
         }
 
@@ -103,6 +92,7 @@ void *sender1(void *arg)
         {
             strcpy(buf.msg, "end1");
             msgsnd(msgid, &buf, sizeof(buf.msg), 0);
+
             sem_post(&r_display);
             sem_post(&full);
             sem_post(&mutex);
@@ -117,8 +107,10 @@ void *sender1(void *arg)
         sem_post(&mutex);
     }
 
-    // 等待 receiver 确认结束
-    sem_wait(&over);
+    // 接收 over1
+    msgrcv(msgid, &buf, sizeof(buf.msg), 2, 0);
+    printf("sender1 receive: %s\n", buf.msg);
+
     return NULL;
 }
 
@@ -145,6 +137,7 @@ void *sender2(void *arg)
         {
             strcpy(buf.msg, "end2");
             msgsnd(msgid, &buf, sizeof(buf.msg), 0);
+
             sem_post(&r_display);
             sem_post(&full);
             sem_post(&mutex);
@@ -159,23 +152,22 @@ void *sender2(void *arg)
         sem_post(&mutex);
     }
 
-    // 等待 receiver 确认结束
-    sem_wait(&over);
+    // 接收 over2
+    msgrcv(msgid, &buf, sizeof(buf.msg), 2, 0);
+    printf("sender2 receive: %s\n", buf.msg);
+
     return NULL;
 }
 
 // ================= main =================
 int main()
 {
-    // ---------- 初始化信号量 ----------
-    sem_init(&mutex,     0, 1);
-    sem_init(&full,      0, 0);
-    sem_init(&empty,     0, 5);
-    sem_init(&over,      0, 0);
+    sem_init(&mutex, 0, 1);
+    sem_init(&full, 0, 0);
+    sem_init(&empty, 0, 5);
     sem_init(&s_display, 0, 1);
     sem_init(&r_display, 0, 0);
 
-    // ---------- 创建消息队列 ----------
     key_t key = 100;
     int msgid = msgget(key, IPC_CREAT | 0666);
     if (msgid == -1)
@@ -184,17 +176,19 @@ int main()
         exit(1);
     }
 
-    // ---------- 创建三个线程 ----------
+    // receiver先启动
+    pthread_create(&r, NULL, receive, &msgid);
+
+    // sender1
     pthread_create(&s1, NULL, sender1, &msgid);
-    pthread_create(&r,  NULL, receive, &msgid);
-    pthread_create(&s2, NULL, sender2, &msgid);
-
-    // ---------- 等待线程结束 ----------
     pthread_join(s1, NULL);
-    pthread_join(s2, NULL);
-    pthread_join(r,  NULL);
 
-    // ---------- 删除消息队列 ----------
+    // sender2
+    pthread_create(&s2, NULL, sender2, &msgid);
+    pthread_join(s2, NULL);
+
+    pthread_join(r, NULL);
+
     msgctl(msgid, IPC_RMID, NULL);
 
     return 0;
