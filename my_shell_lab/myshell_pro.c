@@ -8,61 +8,54 @@
 
 int main() {
     char buf[100];
-    char history[MAX_HISTORY][100]; // 创新点2：存储历史记录的数组
+    char history[MAX_HISTORY][100];
     int history_count = 0;
 
     while (1) {
-        printf("HDU-Pro-Shell > ");
+        printf("HDU-Mixed-Shell > ");
         fflush(stdout);
 
         if (fgets(buf, sizeof(buf), stdin) == NULL) break;
-        buf[strcspn(buf, "\n")] = 0;
-
+        buf[strcspn(buf, "\n")] = 0; // 必须在这里切断换行符
         if (strlen(buf) == 0) continue;
 
-        // --- 创新点2：保存历史记录 ---
+        // 历史记录逻辑
         if (history_count < MAX_HISTORY) {
             strcpy(history[history_count++], buf);
         } else {
-            // 满了就挪动位置（简易覆盖）
             for(int i=0; i<MAX_HISTORY-1; i++) strcpy(history[i], history[i+1]);
             strcpy(history[MAX_HISTORY-1], buf);
         }
 
-        // --- 创新点1：实现内建命令 cd ---
-        if (strncmp(buf, "cd ", 3) == 0) {
-            char *path = buf + 3; // 获取 "cd " 之后的路径
-            if (chdir(path) != 0) {
-                perror("cd 失败");
-            }
-            continue; // 直接跳过后面的 fork
-        }
-
-        // --- 创新点2：实现内建命令 history ---
+        if (strcmp(buf, "exit") == 0) break;
         if (strcmp(buf, "history") == 0) {
-            for (int i = 0; i < history_count; i++) {
-                printf("%d: %s\n", i + 1, history[i]);
-            }
+            for (int i = 0; i < history_count; i++) printf("%d: %s\n", i + 1, history[i]);
+            continue;
+        }
+        if (strncmp(buf, "cd ", 3) == 0) {
+            if (chdir(buf + 3) != 0) perror("cd 失败");
             continue;
         }
 
-        if (strcmp(buf, "exit") == 0) break;
-
-        // --- 核心逻辑：执行外部命令 ---
         pid_t pid = fork();
         if (pid == 0) {
-            // --- 创新点3：升级为 execvp ---
-            // 构造参数数组，execvp 需要 char* 数组
-            char *args[2];
-            args[0] = buf;   // 命令名
-            args[1] = NULL;  // 必须以 NULL 结尾
+            char path[128];
+            memset(path, 0, sizeof(path));
+            strcpy(path, "./");
+            strcat(path, buf);
 
-            // 尝试执行。如果 buf 是 "ls"，它会自动去系统路径找
-            // 如果 buf 是 "./cmd1"，它也会在当前目录找
-            if (execvp(args[0], args) == -1) {
-                printf("错误：未找到命令 '%s'\n", buf);
-                exit(1);
+            // [调试信息] 老师，看这里，这是为了确认路径拼接是否正确
+            // printf("[Debug] 正在尝试访问路径: %s\n", path); 
+
+            if (access(path, X_OK) == 0) {
+                execl(path, buf, NULL);
+            } else {
+                char *args[] = {buf, NULL};
+                execvp(args[0], args);
             }
+
+            printf("错误：未找到命令 '%s'\n", buf);
+            exit(1);
         } else {
             wait(NULL);
         }
