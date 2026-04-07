@@ -22,7 +22,7 @@
 #include <unistd.h>     // usleep
 
 /* 共享内存 key 文件路径 */
-#define SHM_KEY_PATH "shared_memory/shmfile"
+#define SHM_KEY_PATH "shmfile"
 
 /* 共享内存项目号，必须与 sender 完全一致 */
 #define SHM_PROJ_ID 65
