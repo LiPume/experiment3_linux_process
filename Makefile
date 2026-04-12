@@ -1,42 +1,70 @@
 CC = gcc
-CFLAGS = -Wall -g
+CFLAGS = -Wall -O2
 PTHREAD_FLAGS = -lpthread
 
-all: shell cmd1 cmd2 cmd3 pipe_comm msg_queue shm_sender shm_receiver
+.PHONY: all clean shell pipe msg shm benchmark
 
-# ---------- shell ----------
-shell: shell/shell_main.c
-	$(CC) $(CFLAGS) -o shell/shell_main shell/shell_main.c
+all: shell pipe msg shm
 
-cmd1: shell/cmd1.c
-	$(CC) $(CFLAGS) -o shell/cmd1 shell/cmd1.c
+# ===== 实验1：Shell =====
+shell: my_shell_lab/myshell my_shell_lab/cmd1 my_shell_lab/cmd2 my_shell_lab/cmd3
 
-cmd2: shell/cmd2.c
-	$(CC) $(CFLAGS) -o shell/cmd2 shell/cmd2.c
+my_shell_lab/myshell: my_shell_lab/myshell.c
+	$(CC) $(CFLAGS) -o my_shell_lab/myshell my_shell_lab/myshell.c
 
-cmd3: shell/cmd3.c
-	$(CC) $(CFLAGS) -o shell/cmd3 shell/cmd3.c
+my_shell_lab/cmd1: my_shell_lab/cmd1.c
+	$(CC) $(CFLAGS) -o my_shell_lab/cmd1 my_shell_lab/cmd1.c
 
-# ---------- pipe ----------
-pipe_comm: pipe_comm/pipe_main.c
+my_shell_lab/cmd2: my_shell_lab/cmd2.c
+	$(CC) $(CFLAGS) -o my_shell_lab/cmd2 my_shell_lab/cmd2.c
+
+my_shell_lab/cmd3: my_shell_lab/cmd3.c
+	$(CC) $(CFLAGS) -o my_shell_lab/cmd3 my_shell_lab/cmd3.c
+
+# ===== 实验2：管道 =====
+pipe: pipe_comm/pipe_main pipe_comm/pipe_block_write
+
+pipe_comm/pipe_main: pipe_comm/pipe_main.c
 	$(CC) $(CFLAGS) -o pipe_comm/pipe_main pipe_comm/pipe_main.c
 
-# ---------- message queue ----------
-msg_queue: msg_queue/msg_queue_main.c
-	$(CC) $(CFLAGS) -o msg_queue/msg_queue_main msg_queue/msg_queue_main.c $(PTHREAD_FLAGS)
+pipe_comm/pipe_block_write: pipe_comm/pipe_block_write.c
+	$(CC) $(CFLAGS) -o pipe_comm/pipe_block_write pipe_comm/pipe_block_write.c
 
-# ---------- shared memory ----------
-shm_sender: shared_memory/shm_sender.c
-	$(CC) $(CFLAGS) -o shared_memory/shm_sender shared_memory/shm_sender.c
+# ===== 实验3：消息队列 =====
+msg: msg_queue/msg_queue
 
-shm_receiver: shared_memory/shm_receiver.c
-	$(CC) $(CFLAGS) -o shared_memory/shm_receiver shared_memory/shm_receiver.c
+msg_queue/msg_queue: msg_queue/msg_queue_main.c
+	$(CC) $(CFLAGS) -o msg_queue/msg_queue msg_queue/msg_queue_main.c $(PTHREAD_FLAGS)
 
-# ---------- clean ----------
+# ===== 实验4：共享内存 =====
+shm: shared_memory/sender shared_memory/receiver
+
+shared_memory/sender: shared_memory/shm_sender.c
+	$(CC) $(CFLAGS) -o shared_memory/sender shared_memory/shm_sender.c
+
+shared_memory/receiver: shared_memory/shm_receiver.c
+	$(CC) $(CFLAGS) -o shared_memory/receiver shared_memory/shm_receiver.c
+
+# ===== 可选：性能测试程序 =====
+benchmark: pipe_comm/pipe_benchmark msg_queue/msg_queue_benchmark shared_memory/shm_benchmark_sender shared_memory/shm_benchmark_receiver
+
+pipe_comm/pipe_benchmark: pipe_comm/pipe_benchmark.c
+	$(CC) $(CFLAGS) -o pipe_comm/pipe_benchmark pipe_comm/pipe_benchmark.c
+
+msg_queue/msg_queue_benchmark: msg_queue/msg_queue_benchmark.c
+	$(CC) $(CFLAGS) -o msg_queue/msg_queue_benchmark msg_queue/msg_queue_benchmark.c
+
+shared_memory/shm_benchmark_sender: shared_memory/shm_benchmark_sender.c
+	$(CC) $(CFLAGS) -o shared_memory/shm_benchmark_sender shared_memory/shm_benchmark_sender.c
+
+shared_memory/shm_benchmark_receiver: shared_memory/shm_benchmark_receiver.c
+	$(CC) $(CFLAGS) -o shared_memory/shm_benchmark_receiver shared_memory/shm_benchmark_receiver.c
+
+# ===== 清理 =====
 clean:
-	rm -f shell/shell_main shell/cmd1 shell/cmd2 shell/cmd3
-	rm -f pipe_comm/pipe_main
-	rm -f msg_queue/msg_queue_main
-	rm -f shared_memory/shm_sender shared_memory/shm_receiver
-	
-.PHONY: all clean shell cmd1 cmd2 cmd3 pipe_comm msg_queue shm_sender shm_receiver
+	rm -f my_shell_lab/myshell
+	rm -f my_shell_lab/cmd1 my_shell_lab/cmd2 my_shell_lab/cmd3
+	rm -f pipe_comm/pipe_main pipe_comm/pipe_block_write pipe_comm/pipe_benchmark
+	rm -f msg_queue/msg_queue msg_queue/msg_queue_benchmark
+	rm -f shared_memory/sender shared_memory/receiver
+	rm -f shared_memory/shm_benchmark_sender shared_memory/shm_benchmark_receiver
