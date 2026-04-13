@@ -1,9 +1,7 @@
 /*
  * 文件名：pipe_main.c
  * 模块：管道通信
- * 负责人：
  * 功能：父进程创建管道并与3个子进程通信
- * 关键系统调用：pipe(), fork(), read(), write(), close(), wait()
  */
 #define _GNU_SOURCE
 #include <stdio.h>
@@ -57,10 +55,10 @@ int main() {
         }
 
         if (pid == 0) {
-            close(fd[0]);
+            close(fd[0]);   // 子进程不用读端
 
-	    sleep(3);
-	    
+            sleep(1);       // 只是为了更明显看到多个子进程运行
+
             sem_wait(write_sem);
 
             char msg[MSG_SIZE];
@@ -68,34 +66,40 @@ int main() {
                      "来自子进程 %d (pid=%d) 的消息\n", i + 1, getpid());
 
             printf("子进程 %d：准备写入管道...\n", i + 1);
-            write(fd[1], msg, strlen(msg));
-            printf("子进程 %d：写入完成。\n", i + 1);
+            int len = strlen(msg);
+            int n = write(fd[1], msg, len);
+            printf("子进程 %d：写入完成，实际写入 %d 字节。\n", i + 1, n);
 
             sem_post(write_sem);
 
             close(fd[1]);
+            sem_close(write_sem);
             exit(0);
         }
     }
 
-    close(fd[1]);
+    close(fd[1]);   // 父进程不用写端
 
-    printf("父进程：现在开始读取管道，如果管道为空，read会阻塞...\n");
+    printf("父进程：先等待3个子进程全部发送完消息...\n");
+    for (int i = 0; i < CHILD_NUM; i++) {
+        wait(NULL);
+    }
+    printf("父进程：3个子进程均已结束，开始统一读取管道内容。\n");
 
-    int n = read(fd[0], buffer, sizeof(buffer));
-    printf("父进程：read返回，读取到 %d 字节。\n", n);
-
-    if (n > 0) {
-	write(STDOUT_FILENO, "父进程收到：", strlen("父进程收到："));
-	write(STDOUT_FILENO, buffer, n);
+    int n;
+    while ((n = read(fd[0], buffer, sizeof(buffer) - 1)) > 0) {
+        buffer[n] = '\0';
+        printf("父进程：本次 read 返回 %d 字节。\n", n);
+        printf("父进程收到：%s", buffer);
     }
 
-    for (int i = 0; i < CHILD_NUM; i++) {
-	wait(NULL);
+    if (n == 0) {
+        printf("父进程：管道已读完，read 返回 0。\n");
+    } else if (n < 0) {
+        perror("read failed");
     }
 
     close(fd[0]);
-
     sem_close(write_sem);
     sem_unlink("/pipe_write_sem");
 
