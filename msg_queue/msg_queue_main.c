@@ -22,6 +22,8 @@ sem_t mq_ready;       // 通知主线程：消息队列已创建
 int msgid = -1;       // 全局消息队列 id，由 sender1 创建
 key_t key = 100;      // 消息队列 key
 
+pthread_mutex_t print_mutex;
+
 // ---------- 消息结构 ----------
 struct msgbuff
 {
@@ -52,8 +54,10 @@ void *receive(void *arg)
             pthread_exit(NULL);
         }
 
+        pthread_mutex_lock(&print_mutex);
         printf("receiver: %s\n", buf.msg);
         printf("-----------------------------------------\n");
+        pthread_mutex_unlock(&print_mutex);
 
         // 收到 end1，回复 over1 给 sender1（消息类型2）
         if (strcmp(buf.msg, "end1") == 0 && !end1_flag)
@@ -94,7 +98,9 @@ void *receive(void *arg)
         sem_post(&s_display);
     }
 
+    pthread_mutex_lock(&print_mutex);
     printf("receiver: sender1 and sender2 are all over.\n");
+    pthread_mutex_unlock(&print_mutex);
 
     // 由 receiver 删除消息队列
     if (msgctl(msgid, IPC_RMID, NULL) == -1)
@@ -103,7 +109,9 @@ void *receive(void *arg)
     }
     else
     {
+        pthread_mutex_lock(&print_mutex);
         printf("receiver: message queue deleted.\n");
+        pthread_mutex_unlock(&print_mutex);
     }
 
     pthread_exit(NULL);
@@ -124,7 +132,9 @@ void *sender1(void *arg)
         pthread_exit(NULL);
     }
 
+    pthread_mutex_lock(&print_mutex);
     printf("sender1: message queue created successfully, msgid = %d\n", msgid);
+    pthread_mutex_unlock(&print_mutex);
 
     // 通知主线程：消息队列已创建
     sem_post(&mq_ready);
@@ -136,10 +146,15 @@ void *sender1(void *arg)
         sem_wait(&s_display);
         sem_wait(&empty);
 
+        pthread_mutex_lock(&print_mutex);
         printf("sender1> ");
+        fflush(stdout);
+        pthread_mutex_unlock(&print_mutex);
         if (scanf("%99s", buf.msg) != 1)
         {
+            pthread_mutex_lock(&print_mutex);
             printf("sender1 input error\n");
+            pthread_mutex_unlock(&print_mutex);
             sem_post(&empty);
             sem_post(&s_display);
             continue;
@@ -179,7 +194,9 @@ void *sender1(void *arg)
         pthread_exit(NULL);
     }
 
+    pthread_mutex_lock(&print_mutex);
     printf("sender1 received reply: %s\n", buf.msg);
+    pthread_mutex_unlock(&print_mutex);
     pthread_exit(NULL);
 }
 
@@ -197,10 +214,15 @@ void *sender2(void *arg)
         sem_wait(&s_display);
         sem_wait(&empty);
 
+        pthread_mutex_lock(&print_mutex);
         printf("sender2> ");
+        fflush(stdout);
+        pthread_mutex_unlock(&print_mutex);
         if (scanf("%99s", buf.msg) != 1)
         {
+            pthread_mutex_lock(&print_mutex);
             printf("sender2 input error\n");
+            pthread_mutex_unlock(&print_mutex);
             sem_post(&empty);
             sem_post(&s_display);
             continue;
@@ -240,7 +262,9 @@ void *sender2(void *arg)
         pthread_exit(NULL);
     }
 
+    pthread_mutex_lock(&print_mutex);
     printf("sender2 received reply: %s\n", buf.msg);
+    pthread_mutex_unlock(&print_mutex);
     pthread_exit(NULL);
 }
 
@@ -254,6 +278,8 @@ int main()
     sem_init(&s_display, 0, 1);
     sem_init(&r_display, 0, 0);
     sem_init(&mq_ready, 0, 0);
+
+    pthread_mutex_init(&print_mutex, NULL);
 
     // 先创建 sender1，让它负责创建消息队列
     ret = pthread_create(&s1, NULL, sender1, NULL);
@@ -290,6 +316,8 @@ int main()
     sem_destroy(&s_display);
     sem_destroy(&r_display);
     sem_destroy(&mq_ready);
+
+    pthread_mutex_destroy(&print_mutex);
 
     return 0;
 }
